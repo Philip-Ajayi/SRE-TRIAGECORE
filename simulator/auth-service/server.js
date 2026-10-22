@@ -86,7 +86,7 @@ app.get('/metrics', async (_req, res) => {
 });
 
 const PORT = 4000;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '127.0.0.1', () => {
   console.log(`[auth-service] Microservice listening on http://0.0.0.0:${PORT}`);
 });
 

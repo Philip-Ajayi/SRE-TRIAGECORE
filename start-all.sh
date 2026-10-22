@@ -16,7 +16,7 @@ TARGET_URL=http://127.0.0.1:4000/login REQUEST_INTERVAL_MS=200 node simulator/tr
 # 3. Start Prometheus on port 9090
 echo "[3/4] Starting Prometheus metrics engine..."
 mkdir -p /tmp/prometheus
-prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/tmp/prometheus &
+prometheus --config.file=/etc/prometheus/prometheus.yml --web.listen-address="127.0.0.1:9090" --storage.tsdb.path=/tmp/prometheus &
 
 # Wait for background services to bind ports
 echo "Waiting for internal simulator services to initialize..."
