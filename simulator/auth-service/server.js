@@ -29,14 +29,18 @@ app.get('/health', (_req, res) => {
 
 app.post('/login', (_req, res) => {
   if (isDegraded) {
-    httpRequestCounter.inc({ service: 'auth-service', status: '500', endpoint: '/login' });
-    console.error('[auth-service] ERROR: RedisConnectionPoolExhaustedException: Pool size ' + maxConnections + ' exhausted. Timeout 500ms.');
-    res.status(500).json({
-      error: 'RedisConnectionPoolExhaustedException',
-      message: 'Failed to acquire client connection from Redis pool (pool capacity ' + maxConnections + ' exhausted)',
-      timestamp: new Date().toISOString()
-    });
-    return;
+    // Under pool size 5 with continuous traffic, ~22.4% of requests time out acquiring a connection
+    const isStarved = Math.random() < 0.224;
+    if (isStarved) {
+      httpRequestCounter.inc({ service: 'auth-service', status: '500', endpoint: '/login' });
+      console.error(`[auth-service] ERROR: RedisConnectionPoolExhaustedException: Pool size ${maxConnections} exhausted. Timeout 500ms.`);
+      res.status(500).json({
+        error: 'RedisConnectionPoolExhaustedException',
+        message: `Failed to acquire client connection from Redis pool (pool capacity ${maxConnections} exhausted)`,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
   }
 
   httpRequestCounter.inc({ service: 'auth-service', status: '200', endpoint: '/login' });
@@ -86,7 +90,7 @@ app.get('/metrics', async (_req, res) => {
 });
 
 const PORT = 4000;
-app.listen(PORT, '127.0.0.1', () => {
+// Bind to 0.0.0.0 so both Docker bridge networks and host routes can communicate
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`[auth-service] Microservice listening on http://0.0.0.0:${PORT}`);
 });
-

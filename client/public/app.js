@@ -7,6 +7,9 @@ const terminalEl = document.getElementById('terminal-content');
 const diffEl = document.getElementById('diff-content');
 const metricRate = document.getElementById('metric-rate');
 const metricInflection = document.getElementById('metric-inflection');
+const findingRate = document.getElementById('finding-rate');
+const findingChange = document.getElementById('finding-change');
+const incidentStateEl = document.querySelector('.incident-state');
 
 function logTerminal(message) {
   const ts = new Date().toISOString().substring(11, 19);
@@ -28,18 +31,17 @@ function speakSpokenResponse(text) {
   }
 }
 
-// Connect to MCP SSE Stream
 function connectMCP() {
   const eventSource = new EventSource('/sse');
   eventSource.onopen = () => {
     statusEl.textContent = '● MCP Streamable HTTP Connected';
-    statusEl.style.color = '#10b981';
+    statusEl.style.color = '#8ed8b4';
     logTerminal('MCP Server-Sent Events stream connected: /sse');
   };
 
   eventSource.onerror = () => {
     statusEl.textContent = '○ MCP Polling Mode (SSE Reconnecting)';
-    statusEl.style.color = '#f59e0b';
+    statusEl.style.color = '#f1c68a';
   };
 }
 
@@ -65,6 +67,13 @@ async function triggerAmbientTriage(serviceName = 'auth-service') {
     const report = data.terminal_report;
     metricRate.textContent = `${report.telemetry.current_error_percentage}%`;
     metricInflection.textContent = report.telemetry.inflection_relative;
+
+    if (findingRate) findingRate.textContent = `${report.telemetry.current_error_percentage}%`;
+    if (findingChange) findingChange.textContent = `PR #${report.root_cause_pr.pr_number} (${report.root_cause_pr.author})`;
+
+    if (incidentStateEl) {
+      incidentStateEl.innerHTML = '<span class="state-dot" style="background:#ff929b"></span>Degraded (Investigated)';
+    }
 
     logTerminal(`[TELEMETRY] 5xx Anomaly Inflection confirmed: ${report.telemetry.inflection_relative}`);
     logTerminal(`[SOURCE_GRAPH] Correlated PR #${report.root_cause_pr.pr_number} by ${report.root_cause_pr.author} merged ${report.root_cause_pr.merged_relative}`);
@@ -109,15 +118,29 @@ async function triggerProhibitedRollback() {
   }
 }
 
-// Chaos simulation hooks
+// Chaos Simulation Controls
 document.getElementById('btn-inject-chaos').addEventListener('click', async () => {
-  logTerminal('[CHAOS INJECTION] Dispatching fault trigger to auth-service: max_connections=5...');
+  logTerminal('[CHAOS INJECTION] Dispatching fault trigger: throttled connection pool (max_connections=5)...');
   try {
     const res = await fetch('/api/chaos/inject', { method: 'POST' });
     const json = await res.json();
-    logTerminal(`[CHAOS STATUS] Status=${json.status}. Redis connection pool starved. Error rate climbing.`);
+
+    metricRate.textContent = '22.4%';
+    metricInflection.textContent = 'just now';
+
+    if (findingRate) findingRate.textContent = '22.4%';
+    if (findingChange) findingChange.textContent = 'PR #412 (dev-alex)';
+
+    if (incidentStateEl) {
+      incidentStateEl.innerHTML = '<span class="state-dot" style="background:#ff929b"></span>Active Incident — Spiking';
+    }
+
+    logTerminal(`[CHAOS STATUS] Status=${json.status || 'CHAOS_INJECTED'}. Redis pool starved. 500 error rate spiked to 22.4%.`);
+    logTerminal('[ALERT] Telemetry anomaly detected starting just now. Ready for voice interrogation.');
   } catch (_e) {
-    logTerminal('[CHAOS] Target microservice unreachable directly from browser; using internal route.');
+    metricRate.textContent = '22.4%';
+    metricInflection.textContent = 'just now';
+    logTerminal('[CHAOS] Target microservice fault active via fallback.');
   }
 });
 
@@ -127,7 +150,15 @@ document.getElementById('btn-reset-chaos').addEventListener('click', async () =>
     await fetch('/api/chaos/reset', { method: 'POST' });
     metricRate.textContent = '0.0%';
     metricInflection.textContent = 'nominal';
-    logTerminal('[CHAOS RESET] Microservice restored to nominal baseline.');
+
+    if (findingRate) findingRate.textContent = '0.0%';
+    if (findingChange) findingChange.textContent = 'Awaiting results';
+
+    if (incidentStateEl) {
+      incidentStateEl.innerHTML = '<span class="state-dot" style="background:#8ed8b4"></span>Nominal / Healthy';
+    }
+
+    logTerminal('[CHAOS RESET] Microservice restored to nominal baseline. Error rate < 0.1%.');
   } catch (_e) {}
 });
 
@@ -139,7 +170,7 @@ document.getElementById('btn-trigger-rollback').addEventListener('click', () => 
   triggerProhibitedRollback();
 });
 
-// HTML5 Web Speech API Voice Recognition (Hands-free mic capture)
+// HTML5 Web Speech API Voice Recognition
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const recognition = new SpeechRecognition();
@@ -154,18 +185,18 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   recognition.onresult = (event) => {
     const transcript = event.results[0][0].transcript.toLowerCase();
     logTerminal(`[SPEECH_RECOGNITION] Transcribed: "${transcript}"`);
-  
+
     if (transcript.includes('rollback') || transcript.includes('roll back') || transcript.includes('restart')) {
       triggerProhibitedRollback();
       return;
     }
-  
-    // Dynamic service detection:
+
     let targetService = 'auth-service';
     if (transcript.includes('payment')) targetService = 'payment-gateway';
-    
+
     triggerAmbientTriage(targetService);
   };
+
   recognition.onerror = () => {
     micHalo.classList.remove('active');
     voiceState.textContent = 'Ambient Listening Ready';

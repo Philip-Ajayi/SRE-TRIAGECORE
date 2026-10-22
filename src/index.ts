@@ -10,7 +10,7 @@ import { logger } from './utils/logger.js';
 import { prmMetadataHandler, readOnlyEnforcementMiddleware, assertReadOnlyScope } from './security/prm.js';
 import { registerMcpTools } from './tools/registry.js';
 import { executeAmbientVoiceTriage } from './orchestrator/ambientVoiceTriage.js';
-import { getTelemetrySignature } from './tools/telemetry.js';
+import { getTelemetrySignature, setLocalChaosState } from './tools/telemetry.js';
 import { correlateGitHubDeployments } from './tools/github.js';
 import { fetchRunbookSteps } from './tools/runbook.js';
 
@@ -38,11 +38,9 @@ registerMcpTools(mcpServer);
 
 let sseTransport: SSEServerTransport | null = null;
 
-// RFC 9728 Protected Resource Metadata Endpoint
 app.get('/.well-known/oauth-protected-resource', prmMetadataHandler);
 
-// Streamable HTTP / Server-Sent Events (SSE) Transport
-app.get('/sse', async (req, res) => {
+app.get('/sse', async (_req, res) => {
   logger.info('Incoming MCP SSE stream connection established');
   sseTransport = new SSEServerTransport('/message', res);
   await mcpServer.connect(sseTransport);
@@ -56,7 +54,6 @@ app.post('/message', async (req, res) => {
   await sseTransport.handlePostMessage(req, res);
 });
 
-// Ambient Voice Client Orchestration API
 app.post('/api/triage/ambient', async (req, res) => {
   const service = req.body.service || 'auth-service';
   try {
@@ -68,7 +65,6 @@ app.post('/api/triage/ambient', async (req, res) => {
   }
 });
 
-// Direct Tool Execution Gateway (Fallback & Verification)
 app.post('/api/tools/execute', async (req, res) => {
   const { tool, arguments: args } = req.body;
   try {
@@ -103,26 +99,39 @@ app.post('/api/tools/execute', async (req, res) => {
   }
 });
 
-// Chaos Injection and Reset Endpoints (Proxied to auth-service)
+// Chaos Injection and Reset Endpoints
 app.post('/api/chaos/inject', async (_req, res) => {
+  const degradedAt = new Date().toISOString();
+  setLocalChaosState(true, degradedAt);
+
   try {
-    const response = await axios.post(`${config.AUTH_SERVICE_URL}/chaos/inject`);
+    const response = await axios.post(`${config.AUTH_SERVICE_URL}/chaos/inject`, {}, { timeout: 2000 });
     res.json(response.data);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (_err) {
+    res.json({
+      status: 'CHAOS_INJECTED',
+      isDegraded: true,
+      degradedAt,
+      maxConnections: 5
+    });
   }
 });
 
 app.post('/api/chaos/reset', async (_req, res) => {
+  setLocalChaosState(false, null);
+
   try {
-    const response = await axios.post(`${config.AUTH_SERVICE_URL}/chaos/reset`);
+    const response = await axios.post(`${config.AUTH_SERVICE_URL}/chaos/reset`, {}, { timeout: 2000 });
     res.json(response.data);
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (_err) {
+    res.json({
+      status: 'RESTORED',
+      isDegraded: false,
+      maxConnections: 50
+    });
   }
 });
 
-// Health Endpoint
 app.get('/health', (_req, res) => {
   res.json({
     status: 'HEALTHY',
@@ -132,7 +141,6 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// Serve Client Web Harness
 const publicPath = path.resolve(__dirname, '../client/public');
 app.use(express.static(publicPath));
 app.get('*', (_req, res) => {

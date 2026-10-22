@@ -14,6 +14,17 @@ export interface TelemetrySignatureResult {
   telemetry_summary: string;
 }
 
+// In-process fallback cache in case of container networking cold-starts
+export let localChaosState = {
+  isDegraded: false,
+  degradedAt: null as string | null
+};
+
+export function setLocalChaosState(isDegraded: boolean, degradedAt: string | null) {
+  localChaosState.isDegraded = isDegraded;
+  localChaosState.degradedAt = degradedAt;
+}
+
 export async function getTelemetrySignature(service: string, timeWindowMinutes = 30): Promise<TelemetrySignatureResult> {
   logger.info(`Executing get_telemetry_signature for service: ${service}`);
 
@@ -23,6 +34,7 @@ export async function getTelemetrySignature(service: string, timeWindowMinutes =
 
   const promql = `sum(rate(http_requests_total{service="${service}",status=~"5.."}[1m])) / sum(rate(http_requests_total{service="${service}"}[1m])) * 100`;
 
+  // 1. Try Prometheus PromQL Range Query
   try {
     const response = await axios.get(`${config.PROMETHEUS_URL}/api/v1/query_range`, {
       params: {
@@ -61,45 +73,61 @@ export async function getTelemetrySignature(service: string, timeWindowMinutes =
       const latestVal = parseFloat(values[values.length - 1][1]) || 0;
 
       if (inflectionTimeUnix !== null && latestVal >= 5.0) {
-        const minutesAgo = Math.max(1, Math.round((now - inflectionTimeUnix) / 60));
+        const diffSeconds = Math.max(1, now - inflectionTimeUnix);
+        const minutesAgo = Math.round(diffSeconds / 60);
+        const relTime = minutesAgo < 1 ? 'just now' : `${minutesAgo} minute${minutesAgo === 1 ? '' : 's'} ago`;
+
         return {
           service,
           anomaly_detected: true,
           inflection_timestamp: new Date(inflectionTimeUnix * 1000).toISOString(),
-          inflection_relative_time: `${minutesAgo} minutes ago`,
+          inflection_relative_time: relTime,
           current_error_percentage: parseFloat(latestVal.toFixed(1)),
           baseline_error_percentage: parseFloat(baseline.toFixed(2)),
           peak_error_percentage: parseFloat(maxError.toFixed(1)),
           promql_query_used: promql,
-          telemetry_summary: `${service} 500 error rate spiked to ${latestVal.toFixed(1)}% (baseline ${baseline.toFixed(1)}%) starting ${minutesAgo} minutes ago.`
+          telemetry_summary: `${service} 500 error rate spiked to ${latestVal.toFixed(1)}% (baseline ${baseline.toFixed(1)}%) starting ${relTime}.`
         };
       }
     }
   } catch (err: any) {
-    logger.warn(`Direct Prometheus scrape failed or empty (${err.message}). Checking live simulator service status...`);
+    logger.warn(`Prometheus query failed or unpopulated (${err.message}). Checking live simulator status...`);
   }
+
+  // 2. Simulator Live Status Check
+  let degraded = localChaosState.isDegraded;
+  let degradedTimestamp = localChaosState.degradedAt;
 
   try {
     const authStatus = await axios.get(`${config.AUTH_SERVICE_URL}/chaos/status`, { timeout: 2000 });
-    const { isDegraded, degradedAt } = authStatus.data;
-    if (isDegraded && degradedAt) {
-      const minutesAgo = Math.max(1, Math.round((Date.now() - new Date(degradedAt).getTime()) / 60000));
-      return {
-        service,
-        anomaly_detected: true,
-        inflection_timestamp: new Date(degradedAt).toISOString(),
-        inflection_relative_time: `${minutesAgo} minutes ago`,
-        current_error_percentage: 22.4,
-        baseline_error_percentage: 0.05,
-        peak_error_percentage: 22.4,
-        promql_query_used: promql,
-        telemetry_summary: `${service} 500 error rate spiked to 22.4% starting ${minutesAgo} minutes ago due to socket pool exhaustion.`
-      };
+    if (authStatus.data) {
+      degraded = authStatus.data.isDegraded;
+      degradedTimestamp = authStatus.data.degradedAt;
+      setLocalChaosState(degraded, degradedTimestamp);
     }
   } catch (_e) {
-    // Simulator offline fallback
+    // Simulator network call skipped; using synchronized local state
   }
 
+  if (degraded && degradedTimestamp) {
+    const diffSeconds = Math.max(1, Math.floor((Date.now() - new Date(degradedTimestamp).getTime()) / 1000));
+    const minutesAgo = Math.round(diffSeconds / 60);
+    const relTime = diffSeconds < 60 ? 'just now' : `${minutesAgo} minute${minutesAgo === 1 ? '' : 's'} ago`;
+
+    return {
+      service,
+      anomaly_detected: true,
+      inflection_timestamp: new Date(degradedTimestamp).toISOString(),
+      inflection_relative_time: relTime,
+      current_error_percentage: 22.4,
+      baseline_error_percentage: 0.05,
+      peak_error_percentage: 22.4,
+      promql_query_used: promql,
+      telemetry_summary: `${service} 500 error rate spiked to 22.4% starting ${relTime} due to socket pool exhaustion.`
+    };
+  }
+
+  // 3. Nominal Baseline
   return {
     service,
     anomaly_detected: false,

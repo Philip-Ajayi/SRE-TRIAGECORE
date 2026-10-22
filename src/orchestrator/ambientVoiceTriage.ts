@@ -47,7 +47,9 @@ export async function executeAmbientVoiceTriage(service: string): Promise<Ambien
   const step1 = runbook.steps[0] || 'Check connection pool telemetry.';
   const step2 = runbook.steps[1] || 'Revert breaking configuration.';
 
-  const spoken_response = `${service} 500 error rate spiked to ${errorRate}% starting ${inflectionTime}. Root cause correlation: ${deployment.root_cause_summary} Runbook step 1: ${step1}. Runbook step 2: ${step2}. Full incident report dispatched to your terminal.`;
+  const formattedService = service.charAt(0).toUpperCase() + service.slice(1);
+
+  const spoken_response = `${formattedService} 500 error rate spiked to ${errorRate}% starting ${inflectionTime}. Root cause correlation: ${deployment.root_cause_summary} Runbook step 1: ${step1}. Runbook step 2: ${step2}. Full incident report dispatched to your terminal.`;
 
   return {
     spoken_response,
