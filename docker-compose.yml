@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  sre-triagecore:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sre-triagecore-server
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GITHUB_TOKEN=
+      - GITHUB_OWNER=
+      - GITHUB_REPO=
+      - RUNBOOK_DIR=/app/runbooks
+      - AUTH_SERVICE_URL=http://auth-service:4000
+      - USE_MOCK_GITHUB=true
+      - LOG_LEVEL=info
+    volumes:
+      - ./runbooks:/app/runbooks:ro
+    depends_on:
+      - prometheus
+      - auth-service
+    networks:
+      - triagecore-net
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ./simulator/auth-service
+      dockerfile: Dockerfile
+    container_name: triagecore-auth-service
+    ports:
+      - "4000:4000"
+    networks:
+      - triagecore-net
+    restart: unless-stopped
+
+  traffic-generator:
+    build:
+      context: ./simulator/traffic-generator
+      dockerfile: Dockerfile
+    container_name: triagecore-traffic-generator
+    environment:
+      - TARGET_URL=http://auth-service:4000/login
+      - REQUEST_INTERVAL_MS=150
+    depends_on:
+      - auth-service
+    networks:
+      - triagecore-net
+    restart: unless-stopped
+
+  prometheus:
+    build:
+      context: ./simulator/prometheus
+      dockerfile: Dockerfile
+    container_name: triagecore-prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - triagecore-net
+    restart: unless-stopped
+
+networks:
+  triagecore-net:
+    driver: bridge

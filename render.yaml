@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: sre-triagecore
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: free
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: USE_MOCK_GITHUB
+        value: "true"
+      - key: PROMETHEUS_URL
+        value: http://127.0.0.1:9090
+      - key: AUTH_SERVICE_URL
+        value: http://127.0.0.1:4000
+      - key: LOG_LEVEL
+        value: info
+      - key: RUNBOOK_DIR
+        value: /app/runbooks

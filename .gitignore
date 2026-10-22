@@ -1,0 +1,8 @@
+cat << 'EOF' > .gitignore
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+Thumbs.db
+EOF

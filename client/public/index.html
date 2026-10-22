@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0e14">
+  <meta name="description" content="TriageCore helps SRE teams investigate incidents, trace changes, and follow safe recovery steps.">
+  <title>TriageCore — Incident Response</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+
+    <header class="navbar">
+      <a class="brand" href="#" aria-label="TriageCore home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 40 40" fill="none">
+            <path d="M7 27V13L20 6L33 13V27L20 34L7 27Z"
+              stroke="currentColor" stroke-width="1.6"/>
+            <path d="M13 23V17L20 13L27 17V23L20 27L13 23Z"
+              fill="currentColor"/>
+          </svg>
+        </span>
+        <span class="brand-copy">
+          <span class="brand-name">triage<span>core</span></span>
+          <span class="brand-caption">Incident response</span>
+        </span>
+      </a>
+
+      <div class="system-status">
+        <span class="status-light" aria-hidden="true"></span>
+        <span id="connection-status" class="status-indicator"
+          role="status" aria-live="polite">Connecting…</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="page-intro">
+        <div>
+          <p class="eyebrow">OPERATIONS / OVERVIEW</p>
+          <h1>Find the cause.<br><span>Fix the right thing.</span></h1>
+          <p class="intro-copy">
+            Investigate incidents by voice, trace recent changes, and get
+            the next steps without leaving your workspace.
+          </p>
+        </div>
+
+        <div class="safety-note">
+          <span class="safety-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M12 3L20 6V11C20 16 16.5 19.5 12 21C7.5 19.5 4 16 4 11V6L12 3Z"
+                stroke="currentColor" stroke-width="1.6"/>
+              <path d="M9 12L11 14L15.5 9.5"
+                stroke="currentColor" stroke-width="1.6"
+                stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span>
+            <strong>Read-only by design</strong>
+            <small>Investigate safely. No automatic rollbacks.</small>
+          </span>
+        </div>
+      </section>
+
+      <section class="incident-strip" aria-label="Current incident">
+        <div class="incident-leading">
+          <span class="incident-pulse" aria-hidden="true"></span>
+          <div>
+            <span class="micro-label">CURRENT SERVICE</span>
+            <strong id="incident-service">auth-service</strong>
+          </div>
+        </div>
+
+        <div class="incident-divider"></div>
+
+        <div class="incident-detail">
+          <span class="micro-label">ERROR RATE</span>
+          <strong id="metric-rate" class="metric-val alert">--</strong>
+        </div>
+
+        <div class="incident-divider"></div>
+
+        <div class="incident-detail">
+          <span class="micro-label">ISSUE STARTED</span>
+          <strong id="metric-inflection" class="metric-val">--</strong>
+        </div>
+
+        <div class="incident-state">
+          <span class="state-dot"></span>
+          Awaiting investigation
+        </div>
+      </section>
+
+      <div class="split-view">
+
+        <section class="panel voice-panel" aria-labelledby="voice-heading">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">01 / INVESTIGATE</p>
+              <h2 id="voice-heading">Talk it through</h2>
+              <p class="section-description">
+                Ask what broke, what changed, and what to do next.
+              </p>
+            </div>
+            <span class="panel-index">VOICE</span>
+          </div>
+
+          <div class="voice-stage">
+            <div class="voice-orbit orbit-one"></div>
+            <div class="voice-orbit orbit-two"></div>
+            <div id="mic-halo" class="mic-halo">
+              <button id="mic-button" class="mic-button"
+                type="button"
+                title="Start voice input"
+                aria-label="Start voice input">
+                <svg viewBox="0 0 24 24" class="mic-icon"
+                  fill="none" aria-hidden="true">
+                  <rect x="9" y="3" width="6" height="12" rx="3"
+                    stroke="currentColor" stroke-width="1.7"/>
+                  <path d="M5.5 11.5V12A6.5 6.5 0 0 0 18.5 12V11.5"
+                    stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round"/>
+                  <path d="M12 18.5V22M9 22H15"
+                    stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <span class="voice-live-label">
+              <span class="voice-live-dot"></span>
+              VOICE CONSOLE
+            </span>
+            <p id="voice-state" class="voice-state" role="status"
+              aria-live="polite">Ready when you are</p>
+            <p class="voice-hint">Tap the microphone to speak</p>
+          </div>
+
+          <div class="prompt-section">
+            <div class="section-label-row">
+              <h3>Try a question</h3>
+              <span>QUICK START</span>
+            </div>
+
+            <button id="btn-trigger-diagnostics"
+              class="prompt-card" type="button">
+              <span class="prompt-icon prompt-icon-blue" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 5.5H20V17H13L8 21V17H4V5.5Z"
+                    stroke="currentColor" stroke-width="1.6"
+                    stroke-linejoin="round"/>
+                  <path d="M8 9H16M8 13H14"
+                    stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round"/>
+                </svg>
+              </span>
+              <span class="prompt-copy">
+                <strong>Investigate an alert</strong>
+                <small>Find the error, recent code changes, and next steps.</small>
+              </span>
+              <span class="prompt-arrow" aria-hidden="true">↗</span>
+            </button>
+
+            <button id="btn-trigger-rollback"
+              class="prompt-card" type="button">
+              <span class="prompt-icon prompt-icon-amber" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M4 10V4M4 4H10M4 4L8.5 8.5A8 8 0 1 1 4 14"
+                    stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="prompt-copy">
+                <strong>Request a rollback</strong>
+                <small>Check how the read-only safety rules respond.</small>
+              </span>
+              <span class="prompt-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>
+
+          <div class="response-card">
+            <div class="response-heading">
+              <span class="response-wave" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </span>
+              <h3>Voice response</h3>
+              <span class="response-live">AUDIO</span>
+            </div>
+            <p id="spoken-output" class="spoken-text">
+              Your spoken response will appear here.
+            </p>
+          </div>
+
+          <div class="simulation-section">
+            <div class="section-label-row">
+              <h3>Service simulation</h3>
+              <span>DEMO TOOLS</span>
+            </div>
+            <p class="simulation-copy">
+              Create a connection-pool issue or restore the service.
+            </p>
+            <div class="button-group">
+              <button id="btn-inject-chaos"
+                class="btn btn-warn" type="button">
+                <span aria-hidden="true">⚡</span> Simulate failure
+              </button>
+              <button id="btn-reset-chaos"
+                class="btn btn-secondary" type="button">
+                <span aria-hidden="true">↻</span> Restore service
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel diagnostics-panel"
+          aria-labelledby="diagnostics-heading">
+          <div class="panel-heading diagnostics-heading">
+            <div>
+              <p class="eyebrow">02 / TRACE THE ISSUE</p>
+              <h2 id="diagnostics-heading">Investigation</h2>
+              <p class="section-description">
+                Live findings from your incident.
+              </p>
+            </div>
+            <span class="live-badge">
+              <span></span> LIVE
+            </span>
+          </div>
+
+          <div class="findings-grid">
+            <article class="finding-card">
+              <span class="finding-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M3 17L8 12L12 15L20 6"
+                    stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M15 6H20V11"
+                    stroke="currentColor" stroke-width="1.7"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="micro-label">ERROR RATE</span>
+              <strong id="finding-rate">--</strong>
+              <small>Server errors</small>
+            </article>
+
+            <article class="finding-card">
+              <span class="finding-icon finding-icon-purple"
+                aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M8 5H5V19H8M16 5H19V19H16M10 9L8 12L10 15M14 9L16 12L14 15"
+                    stroke="currentColor" stroke-width="1.6"
+                    stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="micro-label">RECENT CHANGE</span>
+              <strong id="finding-change">Awaiting results</strong>
+              <small>Likely code change</small>
+            </article>
+          </div>
+
+          <div class="terminal-container">
+            <div class="terminal-bar-top">
+              <div class="terminal-controls" aria-hidden="true">
+                <span class="circle red"></span>
+                <span class="circle yellow"></span>
+                <span class="circle green"></span>
+              </div>
+              <span class="terminal-title">Investigation log</span>
+              <span class="terminal-live">
+                <span></span> OUTPUT
+              </span>
+            </div>
+            <pre id="terminal-content" class="terminal-body" aria-live="polite">TriageCore is ready.
+
+Select a question to begin your investigation.
+Your findings will appear here as they arrive.</pre>
+          </div>
+
+          <div class="diff-viewer">
+            <div class="diff-header">
+              <div>
+                <span class="diff-heading-icon" aria-hidden="true">⌘</span>
+                <div>
+                  <h3>Code changes</h3>
+                  <p>Changes linked to the incident</p>
+                </div>
+              </div>
+              <span class="diff-file-label">PATCH</span>
+            </div>
+            <pre id="diff-content" class="diff-body">// Your investigation will show the relevant changes here.</pre>
+          </div>
+
+          <div class="footer-note">
+            <span class="footer-shield" aria-hidden="true">✓</span>
+            <p><strong>Safe by default.</strong> TriageCore investigates but does not change your services.</p>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
