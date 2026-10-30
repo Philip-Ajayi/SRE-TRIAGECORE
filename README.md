@@ -1,219 +1,222 @@
 # SRE TriageCore 🛡️🎙️
 
-> **Hands-Free Ambient Incident Diagnostics & Runbook Synthesis for On-Call Engineers under RFC 9728 Strictly Read-Only Security Scopes.**
+When a high-severity alert wakes you up at 3:00 AM, the hardest part is piecing together what happened. You usually find yourself juggling multiple browser tabs: one for metric dashboards, another for GitHub pull requests, another for team wikis, and a terminal window.
 
-[![Node.js](https://img.shields.io/badge/Node.js-20+-68a063?logo=node.js)](https://nodejs.org/)
-[![Model Context Protocol](https://img.shields.io/badge/Protocol-MCP%20Streamable%20HTTP-blue)](https://modelcontextprotocol.io/)
-[![Prometheus](https://img.shields.io/badge/Metrics-Prometheus%20PromQL-e6522c?logo=prometheus)](https://prometheus.io/)
-[![Security](https://img.shields.io/badge/Security-RFC%209728%20Read--Only-green)](https://datatracker.ietf.org/doc/rfc9728/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+**SRE TriageCore** is a hands-free incident assistant designed to cut through that noise. It connects directly to your metrics, recent code changes, and markdown runbooks, then summarizes everything into a plain-English voice briefing right on your screen. To keep your systems safe while you investigate, it operates under strict read-only security rules (based on RFC 9728)—meaning it will never trigger automatic rollbacks, restarts, or accidental writes.
 
 ---
 
-## Overview
+## What We Are Building
 
-When a P1 alert pages an engineer at 3:00 AM, cognitive load is at its highest. Navigating separate tabs for metric dashboards, Git diffs, and stale wikis causes mean time to resolution (MTTR) to spike.
+SRE TriageCore combines four core capabilities into a single incident dashboard:
 
-**SRE TriageCore** is an ambient incident console and MCP server. It correlates real-time Prometheus telemetry, Git commit diffs, and markdown runbooks into a single spoken briefing dispatched to the engineer's workstation—while strictly enforcing **RFC 9728 Protected Resource Metadata (PRM)** to block unauthorized destructive mutations (such as unverified container rollbacks or pod terminations).
-
----
-
-## Architecture Flow
-
-```
-   [ On-Call Engineer (Voice / Web UI) ]
-                     │
-                     ▼ (Streamable HTTP / SSE JSON-RPC 2.0)
-       [ SRE TriageCore MCP Gateway (:8080) ]
-                     │
-       ┌─────────────┼──────────────┬──────────────────┐
-       │             │              │                  │
-       ▼             ▼              ▼                  ▼
- [ RFC 9728 Guard ] [ PromQL Engine ] [ Git Correlator ] [ Runbook Parser ]
- (Blocks rollbacks  (Scrapes 5xx     (Parses unified     (Extracts steps
-  with HTTP 403)     inflection :9090) diffs on GitHub)   from Markdown)
-                     │
-                     ▼
-             [ auth-service (:4000) ]
-        (Synthetic microservice under load)
-```
+1. **Hands-Free Ambient Voice Assistant:** Talk to your incident console directly using your browser's microphone. You can ask what broke, and the system speaks back an immediate diagnosis.
+2. **Prometheus Telemetry Scraper:** Watches for real-time 5xx spikes and flags the exact time an error rate shifted.
+3. **Git Code Correlation:** Pulls recent merged pull requests, compares commits against the failure timeline, and highlights the breaking diff (such as an exhausted connection pool).
+4. **Markdown Runbook Parser:** Scans your checked-in incident runbooks and extracts ordered recovery steps so you know what to do next.
+5. **Strict Read-Only Guardrails (RFC 9728):** Rejects any destructive requests—like attempting to trigger a container rollback or service restart through the assistant—returning an explicit `HTTP 403 Forbidden`.
 
 ---
 
-## Core Capabilities
+## System Architecture
 
-1. **Model Context Protocol (MCP) Gateway:** Implements Streamable HTTP Server-Sent Events (`/sse` and `/message`) compliant with the official MCP specification.
-2. **RFC 9728 Read-Only Enforcement:** Intercepts mutating actions (`rollback`, `restart`, `terminate`, `patch`) and rejects them with HTTP 403 Forbidden.
-3. **Telemetry Inflection Engine:** Evaluates Prometheus PromQL range queries (`rate(http_requests_total{status=~"5.."}[1m])`) to detect the precise minute of failure.
-4. **Git Root-Cause Correlation:** Pinpoints the exact pull request merged prior to failure and isolates breaking configuration diffs.
-5. **Runbook Markdown AST Resolution:** Scans repository playbooks, matches error signatures, and extracts ordered mitigation steps.
-6. **Ambient Voice Console:** Interactive dark-mode dashboard featuring hands-free Web Speech API input, natural speech synthesis, and live diagnostic diff streaming.
+```text
+       [ On-Call Engineer (Voice or Web Console) ]
+                           │
+                           ▼ (Streamable HTTP / SSE)
+            [ SRE TriageCore Server (:8080) ]
+                           │
+      ┌────────────────────┼───────────────────┬───────────────────┐
+      │                    │                   │                   │
+      ▼                    ▼                   ▼                   ▼
+[ RFC 9728 Guard ]  [ Prometheus Engine ]  [ Git Engine ]   [ Runbook Parser ]
+Blocks unsafe       Scrapes 5xx error      Inspects recent  Extracts mitigation
+mutations (403)     rates (:9090)          code changes     steps from markdown
+                           │
+                           ▼
+                  [ auth-service (:4000) ]
+               Synthetic service under load
+```
 
 ---
 
-## System Directory Layout
+## What You Need to Know Before Starting
 
-```
-sre-triagecore/
-├── docker-compose.yml          # Multi-container orchestration
-├── Dockerfile                  # Production unified container
-├── start.sh                    # Automated ecosystem launcher
-├── inject-fault.sh             # Chaos fault injection script
-├── reset-fault.sh              # Service recovery script
-├── verify.sh                   # End-to-end acceptance drill
-├── runbooks/                   # Incident diagnostic playbooks
-│   ├── auth-service.md
-│   └── payment-gateway.md
-├── src/                        # Core MCP Server (TypeScript)
-│   ├── index.ts                # Express app & SSE transport
-│   ├── security/prm.ts         # RFC 9728 read-only boundary guard
-│   ├── tools/                  # MCP tools (telemetry, github, runbook)
-│   └── orchestrator/           # Voice briefing synthesizer
-├── simulator/                  # Local testbed infrastructure
-│   ├── auth-service/           # Microservice emitting Prometheus metrics
-│   ├── traffic-generator/      # Synthetic continuous traffic
-│   └── prometheus/             # Metric scraper configuration
-└── client/public/              # Futuristic developer incident UI
-```
+- **Default Mode:** Out of the box, the project uses a built-in mock git diff engine, meaning **you do not need a GitHub token or external credentials** to run and test the complete incident workflow.
+- **Microservices Included:** The setup includes a mock microservice (`auth-service`), continuous synthetic traffic generator, and Prometheus metrics scraper so you can simulate real failures on your machine.
+- **Browser Compatibility:** For the hands-free voice feature, use a browser that supports the Web Speech API (such as Google Chrome, Brave, or Edge). If voice input is not supported or permitted, you can click the pre-built investigation buttons on the dashboard.
 
 ---
 
 ## Prerequisites
 
-- [Docker & Docker Compose](https://www.docker.com/) (recommended)
-- [Node.js](https://nodejs.org/) (v20+ if running locally outside Docker)
+Make sure you have one of the following installed:
+
+- **Docker and Docker Compose** (strongly recommended for the easiest setup)
+- **Node.js 20+** and **npm** (if running locally without Docker)
 
 ---
 
-## Quickstart: How to Run & Reproduce
+## Step-by-Step Setup Guide
 
-### Option A: Complete Docker Compose Stack (Recommended)
+### 1. Clone the Repository
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/Philip-Ajayi/sre-triagecore.git
-   cd sre-triagecore
-   ```
-
-2. **Make scripts executable:**
-   ```bash
-   chmod +x start.sh inject-fault.sh reset-fault.sh verify.sh
-   ```
-
-3. **Launch the ecosystem:**
-   ```bash
-   ./start.sh
-   ```
-   *This starts the MCP Gateway (`:8080`), Prometheus scraper (`:9090`), `auth-service` (`:4000`), and continuous synthetic traffic generator in the background.*
-
-4. **Open the Incident Console:**
-   Navigate to **[http://localhost:8080](http://localhost:8080)** in your browser.
-
----
-
-### Option B: Local Node.js Development
+Open your terminal and clone the repository:
 
 ```bash
-# 1. Install dependencies
-npm install
-
-# 2. Build TypeScript
-npm run build
-
-# 3. Start development server
-npm run dev
+git clone https://github.com/Philip-Ajayi/sre-triagecore.git
+cd sre-triagecore
 ```
 
+### 2. Make Helper Scripts Executable
+
+Run the following command to make sure the automation scripts can run:
+
+```bash
+chmod +x start.sh start-all.sh inject-fault.sh reset-fault.sh verify.sh
+```
+
+### 3. Configure Environment Variables
+
+The project works out of the box with default values, but you can create a `.env` file in the root directory to customize the configuration:
+
+```bash
+cp .env.example .env 2>/dev/null || touch .env
+```
+
+Here is an example `.env` configuration:
+
+```env
+# Server Network Settings
+PORT=8080
+HOST=0.0.0.0
+LOG_LEVEL=info
+
+# Prometheus Metrics Scraper
+PROMETHEUS_URL=http://localhost:9090
+
+# Target Microservice
+AUTH_SERVICE_URL=http://localhost:4000
+
+# Git Integration Settings
+USE_MOCK_GITHUB=true
+GITHUB_TOKEN=
+GITHUB_OWNER=acme-corp
+GITHUB_REPO=cloud-platform
+
+# Incident Runbooks Directory
+RUNBOOK_DIR=./runbooks
+```
+
+#### Environment Variables Explained:
+- `PORT`: The port where the incident console and API run (default: `8080`).
+- `USE_MOCK_GITHUB`: Set to `true` to use the built-in offline regression diff. Set to `false` if you want to connect to a live GitHub repository.
+- `GITHUB_TOKEN`: A GitHub Personal Access Token (classic or fine-grained with read access to PRs). Only required if `USE_MOCK_GITHUB` is set to `false`.
+- `PROMETHEUS_URL`: The URL of the Prometheus server scraping your services.
+- `AUTH_SERVICE_URL`: The URL of the microservice being monitored.
+- `RUNBOOK_DIR`: Path to the markdown runbooks directory.
+
 ---
 
-## Step-by-Step Incident Drill (Demonstration Guide)
+## How to Run the Project
 
-Follow these steps to demonstrate the full diagnostic workflow:
+### Option A: Using Docker Compose (Recommended)
 
-### 1. Observe Nominal Baseline
-- Open [http://localhost:8080](http://localhost:8080).
-- Notice the incident status reads **nominal** with an error rate of `< 0.1%`.
+This command builds and starts the web console, the simulated `auth-service`, Prometheus, and the background traffic generator all at once:
 
-### 2. Inject Chaos Fault
-Simulate PR #412 throttling the Redis connection pool from 50 down to 5 sockets:
-- Click **"⚡ Simulate failure"** on the dashboard, OR run in your terminal:
-  ```bash
-  ./inject-fault.sh
-  ```
-- Prometheus immediately begins recording 500 Internal Server Errors from the synthetic traffic generator.
+```bash
+./start.sh
+```
 
-### 3. Trigger Voice Triage
-- Click the **pulsing microphone** button (or click **"Investigate an alert"**).
-- If your microphone is active, say: *"PagerDuty alert on auth-service."*
-- **The system speaks the briefing:**
-  > *"auth-service 500 error rate spiked to 22.4% starting 2 minutes ago. Root cause correlation: PR #412 by dev-alex merged 18 minutes ago modified Redis pool max connections in config.json from 50 to 5. Runbook step 1: Check Redis connection pool exhaustion. Runbook step 2: Revert config.json in staging branch. Full incident report dispatched to your terminal."*
-- The investigation log and git patch viewer update in real time.
-
-### 4. Verify RFC 9728 Security Boundary Enforcement
-- Click the button **"Request a rollback"** (or say: *"Roll back the deployment"*).
-- **The system speaks the refusal:**
-  > *"Rollback denied. SRE TriageCore operates strictly under read-only security scopes. Remediate via your terminal."*
-- The terminal displays an **HTTP 403 Forbidden** security policy response.
-
-### 5. Restore Service
-- Click **"↻ Restore service"**, OR run in your terminal:
-  ```bash
-  ./reset-fault.sh
-  ```
-- The error rate returns to 0.0%.
+Once running, open your browser and navigate to:
+**[http://localhost:8080](http://localhost:8080)**
 
 ---
 
-## Automated Verification Suite
+### Option B: Running Locally (Node.js)
 
-To run the automated end-to-end integration test suite without a browser:
+If you prefer to run the Node.js server directly on your host machine:
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Build the TypeScript files:**
+   ```bash
+   npm run build
+   ```
+
+3. **Start the server:**
+   ```bash
+   npm start
+   ```
+
+   *(For live development with automatic restarts, use `npm run dev` instead).*
+
+---
+
+## Walking Through an Incident Drill
+
+Once the app is running at `http://localhost:8080`, you can test an end-to-end incident investigation:
+
+1. **Check the baseline:** The status banner will indicate that the service is healthy with an error rate near `0.0%`.
+2. **Trigger a failure:** Click **"⚡ Simulate failure"** on the dashboard (or run `./inject-fault.sh` in your terminal). This simulates a misconfiguration that restricts the Redis connection pool from 50 to 5 sockets, causing HTTP 500 errors to spike.
+3. **Investigate by voice or click:** Click the microphone and say:
+   > *"PagerDuty alert on auth-service."*  
+   *(Or simply click **"Investigate an alert"** on screen).*
+4. **Hear and review the briefing:** The system will speak the diagnosis, display the metric inflection timestamp, show the correlated PR diff, and present mitigation steps from the runbook.
+5. **Test safety guardrails:** Click **"Request a rollback"** (or say *"Roll back the deployment"*). The assistant will refuse the action and display an `HTTP 403 Forbidden` response to prevent unauthorized changes.
+6. **Restore service:** Click **"↻ Restore service"** (or run `./reset-fault.sh`) to return metrics back to nominal.
+
+---
+
+## Running Automated Tests
+
+To run the verification suite that checks RFC 9728 security boundaries, runbook parsing, git diff extraction, and telemetry queries:
+
+```bash
+npm test
+```
+
+Or run the full end-to-end integration check against running services:
 
 ```bash
 ./verify.sh
 ```
 
-Or run the unit tests directly via Node:
-```bash
-npm test
-```
+---
 
-Expected output:
+## Project Structure
+
 ```text
-RUNNING SRE TRIAGECORE PRODUCTION VERIFICATION SUITE
-✓ PASS: RFC 9728 Strictly Read-Only boundaries verified.
-✓ PASS: Runbook resolution succeeded (Mitigation steps extracted).
-✓ PASS: Unified diff correlation accurately parsed Redis pool regression diff.
-✓ PASS: Telemetry extracted via Prometheus PromQL engine.
-✓ PASS: Voice synthesis matches specification.
-ALL VERIFICATION SUITE CHECKS PASSED (5/5)
+sre-triagecore/
+├── client/public/             # Web dashboard and audio interface
+├── runbooks/                  # Markdown incident response guides
+│   ├── auth-service.md
+│   └── payment-gateway.md
+├── simulator/                 # Local test infrastructure
+│   ├── auth-service/          # Sample microservice emitting Prometheus metrics
+│   ├── prometheus/            # Prometheus configuration
+│   └── traffic-generator/     # Sends continuous traffic to the sample service
+├── src/
+│   ├── index.ts               # Express application entrypoint
+│   ├── config.ts              # Environment configuration & validation
+│   ├── orchestrator/          # Voice briefing generator
+│   ├── security/              # RFC 9728 read-only boundary enforcement
+│   ├── tools/                 # Tool definitions for metrics, GitHub, and runbooks
+│   └── utils/                 # Structured logging
+├── docker-compose.yml         # Container configuration for full local stack
+├── Dockerfile                 # Unified container definition
+├── inject-fault.sh            # Script to simulate service failure
+├── reset-fault.sh             # Script to restore service
+├── start.sh                   # Startup script for Docker Compose
+└── verify.sh                  # End-to-end verification script
 ```
-
----
-
-## Environment Variables (`.env`)
-
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `PORT` | MCP Express HTTP & SSE Port | `8080` |
-| `HOST` | Bind host address | `0.0.0.0` |
-| `PROMETHEUS_URL` | Prometheus scraper API URL | `http://localhost:9090` |
-| `AUTH_SERVICE_URL` | Target simulated microservice URL | `http://localhost:4000` |
-| `USE_MOCK_GITHUB` | Toggle between local realistic diffs and live GitHub API | `true` |
-| `GITHUB_TOKEN` | Optional GitHub Personal Access Token for live repo inspection | `""` |
-| `RUNBOOK_DIR` | Relative directory holding Markdown incident runbooks | `./runbooks` |
-
----
-
-## Cloud Deployment (Render)
-
-This repository includes a `render.yaml` blueprint and a self-contained `start-all.sh` launcher:
-
-1. Push your code to GitHub.
-2. In Render, select **New → Blueprint** and connect this repository.
-3. Render automatically builds the multi-stage Docker container and starts Prometheus, the microservice simulator, and the MCP server under one single port.
 
 ---
 
 ## License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is open-source software licensed under the [MIT License](LICENSE).
+```
