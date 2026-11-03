@@ -1,5 +1,7 @@
 # SRE TriageCore 🛡️🎙️
 
+[![M8ven Verified](https://m8ven.ai/badge/mcp/philip-ajayi/sre-triagecore)](https://m8ven.ai/mcp/philip-ajayi/sre-triagecore)
+
 When a high-severity alert wakes you up at 3:00 AM, the hardest part is piecing together what happened. You usually find yourself juggling multiple browser tabs: one for metric dashboards, another for GitHub pull requests, another for team wikis, and a terminal window.
 
 **SRE TriageCore** is a hands-free incident assistant designed to cut through that noise. It connects directly to your metrics, recent code changes, and markdown runbooks, then summarizes everything into a plain-English voice briefing right on your screen. To keep your systems safe while you investigate, it operates under strict read-only security rules (based on RFC 9728)—meaning it will never trigger automatic rollbacks, restarts, or accidental writes.
@@ -219,4 +221,3 @@ sre-triagecore/
 ## License
 
 This project is open-source software licensed under the [MIT License](LICENSE).
-```
