@@ -1,6 +1,6 @@
 # SRE TriageCore 🛡️🎙️
 
-[![M8ven Verified](https://m8ven.ai/badge/mcp/philip-ajayi/sre-triagecore)](https://m8ven.ai/mcp/philip-ajayi/sre-triagecore)
+[![M8ven Verified](https://m8ven.ai/badge/mcp/philip-ajayi-sre-triagecore-u4dlv3?variant=verified&v=a070d09625fc21db6ab700fb6e7831ee)](https://m8ven.ai/mcp/philip-ajayi-sre-triagecore-u4dlv3?s=readme)
 
 When a high-severity alert wakes you up at 3:00 AM, the hardest part is piecing together what happened. You usually find yourself juggling multiple browser tabs: one for metric dashboards, another for GitHub pull requests, another for team wikis, and a terminal window.
 
